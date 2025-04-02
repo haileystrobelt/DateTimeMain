@@ -1,13 +1,8 @@
 /**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
+ * Sample React Native App with @react-native-documents/picker
  */
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
-import './global.css';
+import React, { useState } from 'react';
 import {
   ScrollView,
   StatusBar,
@@ -15,63 +10,83 @@ import {
   Text,
   useColorScheme,
   View,
+  Button,
+  TextInput,
+  Alert,
 } from 'react-native';
+import { pick, types } from '@react-native-documents/picker'; // Updated import
+import { Colors } from 'react-native/Libraries/NewAppScreen';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
-
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
-
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
+interface FileObject {
+  uri: string;
+  name: string;
+  type: string;
+  size?: number;
 }
 
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
+  const [selectedFile, setSelectedFile] = useState<FileObject | null>(null);
+  const [newFileName, setNewFileName] = useState('');
 
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
 
-  /*
-   * To keep the template simple and small we're adding padding to prevent view
-   * from rendering under the System UI.
-   * For bigger apps the reccomendation is to use `react-native-safe-area-context`:
-   * https://github.com/AppAndFlow/react-native-safe-area-context
-   *
-   * You can read more about it here:
-   * https://github.com/react-native-community/discussions-and-proposals/discussions/827
-   */
   const safePadding = '5%';
+
+  const pickFile = async () => {
+    try {
+      // Use pick() method with allowMultiSelection: false for single file
+      const [result] = await pick({
+        type: [types.allFiles], // Use types from the library
+        allowMultiSelection: false, // Ensures single file selection
+      });
+
+      console.log('Picker result:', result); // Log to verify structure
+
+      const fileName = result.name ?? '';
+      const fileType = result.type ?? 'unknown';
+      const fileSize = result.size ?? undefined;
+
+      setSelectedFile({
+        uri: result.uri,
+        name: fileName,
+        type: fileType,
+        size: fileSize,
+      });
+      setNewFileName(fileName);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      Alert.alert('Error', 'Failed to pick file: ' + errorMessage);
+      console.log('Full error:', error);
+    }
+  };
+
+  const renameFile = async () => {
+    if (!selectedFile || !newFileName) {
+      Alert.alert('Error', 'Please select a file and enter a new name');
+      return;
+    }
+
+    try {
+      const fileExtension = selectedFile.name.split('.').pop();
+      const newFileNameWithExt = newFileName.includes('.')
+        ? newFileName
+        : `${newFileName}.${fileExtension}`;
+
+      const updatedFile = {
+        ...selectedFile,
+        name: newFileNameWithExt,
+      };
+
+      setSelectedFile(updatedFile);
+      Alert.alert('Success', `File name updated to ${newFileNameWithExt} (Note: Demo only)`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      Alert.alert('Error', 'Failed to rename file: ' + errorMessage);
+    }
+  };
 
   return (
     <View style={backgroundStyle}>
@@ -80,16 +95,27 @@ function App(): React.JSX.Element {
         backgroundColor={backgroundStyle.backgroundColor}
       />
       <ScrollView style={backgroundStyle}>
-        <View style={{paddingRight: safePadding}}>
-          <Header />
-        </View>
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-            paddingHorizontal: safePadding,
-            paddingBottom: safePadding,
-          }}>
-          <Text className="text-blue-500">Hello</Text>
+        <View style={{ padding: safePadding }}>
+          <Button title="Pick a File" onPress={pickFile} />
+
+          {selectedFile && (
+            <View style={styles.fileInfo}>
+              <Text style={styles.sectionTitle}>
+                Selected File: {selectedFile.name}
+              </Text>
+              <Text>Type: {selectedFile.type}</Text>
+              <Text>Size: {selectedFile.size ? `${selectedFile.size} bytes` : 'Unknown'}</Text>
+
+              <TextInput
+                style={styles.input}
+                value={newFileName}
+                onChangeText={setNewFileName}
+                placeholder="Enter new file name"
+              />
+
+              <Button title="Rename File" onPress={renameFile} />
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -97,21 +123,20 @@ function App(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
   sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
     fontSize: 18,
-    fontWeight: '400',
+    fontWeight: '600',
+    marginVertical: 10,
   },
-  highlight: {
-    fontWeight: '700',
+  fileInfo: {
+    marginTop: 20,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+    marginVertical: 10,
+    borderRadius: 5,
   },
 });
 
